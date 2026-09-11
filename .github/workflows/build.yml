@@ -10,37 +10,74 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout repository
-      uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-    - name: Set up Python
-      uses: actions/setup-python@v5
-      with:
-        python-version: '3.10'
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
 
-    - name: Install system dependencies
-      run: |
-        sudo apt update
-        sudo apt install -y openjdk-17-jdk libffi-dev libssl-dev autoconf libtool pkg-config zlib1g-dev libncurses5-dev libncursesw5-dev libreadline-dev libsqlite3-dev libgdbm-dev libdb5.3-dev libbz2-dev libexpat1-dev liblzma-dev tk-dev zip unzip
-        pip install --upgrade pip
-        pip install --upgrade buildozer Cython==0.29.33
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
 
-    - name: Accept Android SDK Licenses
-      run: |
-        mkdir -p ~/.android
-        touch ~/.android/repositories.cfg
-        yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses || true
+          sudo apt-get install -y \
+            git \
+            zip \
+            unzip \
+            openjdk-17-jdk \
+            autoconf \
+            automake \
+            autopoint \
+            libtool \
+            pkg-config \
+            zlib1g-dev \
+            libncurses5-dev \
+            libncursesw5-dev \
+            libtinfo6 \
+            libffi-dev \
+            libssl-dev \
+            cmake
 
-    - name: Build APK with Buildozer
-      env:
-        ANDROID_NDK_HOME: ""
-        ANDROID_NDK_ROOT: ""
-        ANDROID_NDK: ""
-      run: |
-        buildozer -v android debug
+          python -m pip install --upgrade pip
+          python -m pip install --upgrade buildozer
+          python -m pip install Cython==0.29.33
 
-    - name: Upload APK Artifact
-      uses: actions/upload-artifact@v4
-      with:
-        name: FacturaApp-APK
-        path: bin/*.apk
+      - name: Remove runner Android environment variables
+        run: |
+          echo "Before cleanup:"
+          env | grep -E 'ANDROID|NDK' || true
+
+          echo "ANDROID_NDK_HOME=" >> "$GITHUB_ENV"
+          echo "ANDROID_NDK_ROOT=" >> "$GITHUB_ENV"
+          echo "ANDROID_NDK=" >> "$GITHUB_ENV"
+
+          unset ANDROID_NDK_HOME
+          unset ANDROID_NDK_ROOT
+          unset ANDROID_NDK
+
+          echo "After cleanup:"
+          env | grep -E 'ANDROID|NDK' || true
+
+      - name: Prepare Android SDK
+        run: |
+          mkdir -p "$ANDROID_HOME/licenses"
+
+          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses || true
+
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" \
+            "platform-tools" \
+            "platforms;android-33" \
+            "build-tools;35.0.0"
+
+      - name: Build APK with Buildozer
+        run: |
+          buildozer -v android debug
+
+      - name: Upload APK Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: FacturaApp-APK
+          path: bin/*.apk
+          if-no-files-found: error
