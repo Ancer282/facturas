@@ -14,6 +14,7 @@ jobs:
 
     container:
       image: ghcr.io/kivy/buildozer:latest
+      options: --user 1000:1000
 
     steps:
       - name: Checkout
