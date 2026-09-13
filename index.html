@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#ffffff">
+<link rel="icon" type="image/png" href="icon.png">
+<link rel="manifest" href="manifest.json">
+<title>Factura</title>
+<style>
+*{box-sizing:border-box}
+html,body{margin:0;padding:0;background:#fff;font-family:Roboto,Arial,sans-serif;color:#555}
+body{min-height:100vh;display:flex;justify-content:center}
+.app{
+  width:100%;max-width:380px;min-height:680px;background:#fff;
+  overflow:hidden;
+}
+.screen{min-height:680px;padding:20px;display:none}
+.screen.active{display:flex;flex-direction:column}
+#formScreen{gap:15px}
+.title{
+  height:35px;line-height:35px;text-align:center;font-size:18px;
+  font-weight:700;color:#555;flex:none;
+}
+.form{
+  display:grid;grid-template-columns:1fr;gap:10px;
+  width:100%;
+}
+.label{
+  height:22px;line-height:22px;font-size:14px;font-weight:700;
+  color:#777;text-align:left;
+}
+select,input,button{
+  font-family:Roboto,Arial,sans-serif;-webkit-tap-highlight-color:transparent;
+}
+select{
+  width:100%;height:40px;border:0;border-radius:0;padding:0 12px;
+  color:#fff;font-size:16px;text-align:center;text-align-last:center;
+  outline:none;appearance:auto;
+}
+#tipo{background:#334d80}
+#entidad{background:#2673d9}
+input{
+  width:100%;height:40px;border:1px solid #ddd;background:#fff;
+  padding:0 10px;font-size:16px;color:#555;outline:none;border-radius:0;
+}
+input:focus{border-color:#aaa}
+input::placeholder{color:#aaa}
+.comision{
+  min-height:40px;line-height:20px;font-size:14px;font-weight:700;
+  color:#888;white-space:pre-line;
+}
+.preview-btn{
+  width:100%;height:50px;border:0;border-radius:0;background:#1a9f55;
+  color:#fff;font-size:15px;font-weight:700;cursor:pointer;
+}
+.preview-btn:active,.action:active{opacity:.8}
+
+#previewScreen{padding:15px;gap:10px}
+.ticket-scroll{
+  width:100%;flex:1;min-height:0;overflow-y:auto;
+}
+.ticket{
+  width:100%;min-height:440px;background:#fff;border:1px solid #ccc;
+  padding:20px;display:flex;flex-direction:column;gap:8px;
+  color:#555;
+}
+.ticket-title{
+  height:38px;text-align:center;font-size:15px;font-weight:700;
+  color:#555;white-space:pre-line;line-height:19px;
+}
+.ticket-date{
+  height:20px;text-align:center;font-size:11px;color:#888;
+  line-height:20px;
+}
+.sep-light{
+  height:15px;text-align:center;font-size:13px;color:#888;
+  line-height:15px;overflow:hidden;
+}
+.ticket-line{
+  height:22px;line-height:22px;font-size:13px;color:#555;
+  text-align:left;
+}
+.sep-dark{
+  height:15px;text-align:center;font-size:13px;color:#555;
+  line-height:15px;overflow:hidden;
+}
+.total{
+  height:30px;line-height:30px;font-size:15px;font-weight:700;
+  color:#555;text-align:center;
+}
+.footer{
+  height:35px;line-height:17px;font-size:11px;color:#888;
+  text-align:center;white-space:pre-line;
+}
+.actions{
+  width:100%;height:100px;display:grid;
+  grid-template-columns:1fr 1fr;gap:8px;flex:none;
+}
+.action{
+  height:46px;border:0;border-radius:0;color:#fff;font-size:14px;
+  font-weight:700;cursor:pointer;
+}
+.modify{background:#808080}
+.save{background:#1a9950}
+.share{background:#2673d9}
+.print{background:#d9741a}
+.message{
+  position:fixed;left:50%;bottom:18px;transform:translateX(-50%);
+  background:#444;color:#fff;padding:9px 14px;font-size:13px;
+  opacity:0;pointer-events:none;transition:opacity .2s;z-index:20;
+  max-width:90%;text-align:center;
+}
+.message.show{opacity:1}
+
+@media print{
+  body{display:block;background:#fff}
+  .app{max-width:none;width:100%}
+  .screen{display:none!important}
+  #previewScreen{display:block!important;padding:0}
+  .ticket-scroll{overflow:visible}
+  .ticket{border:1px solid #999;margin:0 auto;width:380px}
+  .actions{display:none}
+}
+</style>
+</head>
+<script>
+if ("serviceWorker" in navigator) {
+    navigator.serviceWorker.register("sw.js");
+}
+</script>
+<body>
+<div class="app">
+
+  <!-- PANTALLA 1 -->
+  <section id="formScreen" class="screen active">
+    <div class="title">EMISIÓN DE FACTURA / TICKET</div>
+
+    <div class="form">
+      <div class="label">1. Tipo de Entidad:</div>
+      <select id="tipo">
+        <option>Bancos</option>
+        <option>Cajas Municipales</option>
+        <option>Financieras</option>
+      </select>
+
+      <div class="label">2. Nombre de la Entidad:</div>
+      <select id="entidad"></select>
+
+      <div class="label">3. Monto de la Operación (S/):</div>
+      <input id="monto" type="number" inputmode="decimal" step="0.01"
+             placeholder="Ej: 100, 150, 200">
+
+      <div id="comision" class="comision">Comisión: S/ 0.00
+(Regla: S/ 1.00 por cada S/ 100.00)</div>
+
+      <button id="previewBtn" class="preview-btn">VER VISTA PREVIA DEL TICKET</button>
+    </div>
+  </section>
+
+  <!-- PANTALLA 2 -->
+  <section id="previewScreen" class="screen">
+    <div class="ticket-scroll">
+      <div id="ticket" class="ticket">
+        <div class="ticket-title">COMPROBANTE DE FACTURA
+---------------------------------------</div>
+        <div id="fecha" class="ticket-date"></div>
+        <div class="sep-light">- - - - - - - - - - - - - - - - - - - - - - - -</div>
+
+        <div id="ticketEntidad" class="ticket-line"></div>
+        <div id="ticketMonto" class="ticket-line"></div>
+        <div id="ticketComision" class="ticket-line"></div>
+
+        <div class="sep-dark">=======================</div>
+        <div id="ticketTotal" class="total"></div>
+
+        <div class="footer">---------------------------------------
+¡Gracias por su preferencia!</div>
+      </div>
+    </div>
+
+    <div class="actions">
+      <button class="action modify" id="modifyBtn">Modificar</button>
+      <button class="action save" id="saveBtn">Guardar</button>
+      <button class="action share" id="shareBtn">Compartir</button>
+      <button class="action print" id="printBtn">Imprimir</button>
+    </div>
+  </section>
+</div>
+
+<div id="message" class="message"></div>
+
+<script>
+const ENTIDADES = {
+  "Bancos": [
+    "BCP","BBVA","Interbank","Scotiabank","Banco de la Nación",
+    "Banco Pichincha","BanBif","Mibanco"
+  ],
+  "Cajas Municipales": [
+    "Caja Arequipa","Caja Huancayo","Caja Piura","Caja Cusco",
+    "Caja Trujillo","Caja Ica","Caja Maynas"
+  ],
+  "Financieras": [
+    "Financiera Crediscotia","Financiera Confianza",
+    "Financiera Compartamos","Financiera Qapaq",
+    "Financiera Proempresa","Financiera Surgir"
+  ]
+};
+
+const tipo = document.getElementById("tipo");
+const entidad = document.getElementById("entidad");
+const monto = document.getElementById("monto");
+const comision = document.getElementById("comision");
+
+let datos = {
+  monto: 0,
+  comision: 0,
+  entidad: "",
+  fecha: null
+};
+
+function llenarEntidades() {
+  const lista = ENTIDADES[tipo.value] || [];
+  entidad.innerHTML = "";
+  lista.forEach(nombre => {
+    const option = document.createElement("option");
+    option.value = nombre;
+    option.textContent = nombre;
+    entidad.appendChild(option);
+  });
+  actualizarComision();
+}
+
+function calcularComision(valor) {
+  if (!valor || valor <= 0) return 0;
+  return Math.ceil(valor / 100);
+}
+
+function actualizarComision() {
+  const valor = parseFloat(monto.value);
+  const c = calcularComision(valor);
+  comision.textContent =
+    "Comisión: S/ " + c.toFixed(2) +
+    "\n(Regla: S/ 1.00 por cada S/ 100.00)";
+}
+
+function mostrarMensaje(texto) {
+  const el = document.getElementById("message");
+  el.textContent = texto;
+  el.classList.add("show");
+  setTimeout(() => el.classList.remove("show"), 2200);
+}
+
+function fechaTexto(d) {
+  const p = n => String(n).padStart(2, "0");
+  return `${p(d.getDate())}/${p(d.getMonth()+1)}/${d.getFullYear()} ` +
+         `${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`;
+}
+
+tipo.addEventListener("change", llenarEntidades);
+monto.addEventListener("input", actualizarComision);
+
+document.getElementById("previewBtn").addEventListener("click", () => {
+  const valor = parseFloat(monto.value);
+
+  if (!monto.value.trim() || isNaN(valor) || valor <= 0) {
+    mostrarMensaje("Ingrese un monto válido.");
+    return;
+  }
+
+  datos.monto = valor;
+  datos.comision = calcularComision(valor);
+  datos.entidad = entidad.value;
+  datos.fecha = new Date();
+
+  document.getElementById("fecha").textContent =
+    "Fecha: " + fechaTexto(datos.fecha);
+  document.getElementById("ticketEntidad").textContent =
+    "Entidad: " + datos.entidad;
+  document.getElementById("ticketMonto").textContent =
+    "Monto Operación: S/ " + datos.monto.toFixed(2);
+  document.getElementById("ticketComision").textContent =
+    "Comisión (1 cada 100): S/ " + datos.comision.toFixed(2);
+  document.getElementById("ticketTotal").textContent =
+    "TOTAL A PAGAR: S/ " +
+    (datos.monto + datos.comision).toFixed(2);
+
+  document.getElementById("formScreen").classList.remove("active");
+  document.getElementById("previewScreen").classList.add("active");
+});
+
+document.getElementById("modifyBtn").addEventListener("click", () => {
+  document.getElementById("previewScreen").classList.remove("active");
+  document.getElementById("formScreen").classList.add("active");
+});
+
+/* Genera una imagen PNG del ticket sin depender de librerías externas. */
+function crearPNG() {
+  return new Promise(resolve => {
+    const canvas = document.createElement("canvas");
+    const scale = 2;
+    const w = 380, h = 470;
+    canvas.width = w * scale;
+    canvas.height = h * scale;
+    const ctx = canvas.getContext("2d");
+    ctx.scale(scale, scale);
+
+    ctx.fillStyle = "#ffffff";
+    ctx.fillRect(0, 0, w, h);
+
+    ctx.strokeStyle = "#cccccc";
+    ctx.strokeRect(0.5, 0.5, w-1, h-1);
+
+    ctx.fillStyle = "#555555";
+    ctx.textAlign = "center";
+    ctx.font = "bold 15px Arial";
+    ctx.fillText("COMPROBANTE DE FACTURA", w/2, 39);
+    ctx.font = "15px Arial";
+    ctx.fillText("---------------------------------------", w/2, 57);
+
+    ctx.fillStyle = "#888888";
+    ctx.font = "11px Arial";
+    ctx.fillText("Fecha: " + fechaTexto(datos.fecha), w/2, 82);
+    ctx.fillText("- - - - - - - - - - - - - - - - - - - - - - - -", w/2, 105);
+
+    ctx.textAlign = "left";
+    ctx.fillStyle = "#555555";
+    ctx.font = "13px Arial";
+    ctx.fillText("Entidad: " + datos.entidad, 20, 132);
+    ctx.fillText("Monto Operación: S/ " + datos.monto.toFixed(2), 20, 162);
+    ctx.fillText("Comisión (1 cada 100): S/ " + datos.comision.toFixed(2), 20, 192);
+
+    ctx.textAlign = "center";
+    ctx.fillText("=======================", w/2, 220);
+
+    ctx.font = "bold 15px Arial";
+    ctx.fillText("TOTAL A PAGAR: S/ " +
+      (datos.monto + datos.comision).toFixed(2), w/2, 251);
+
+    ctx.fillStyle = "#888888";
+    ctx.font = "11px Arial";
+    ctx.fillText("---------------------------------------", w/2, 285);
+    ctx.fillText("¡Gracias por su preferencia!", w/2, 302);
+
+    canvas.toBlob(blob => resolve(blob), "image/png");
+  });
+}
+
+function nombreArchivo() {
+  const d = datos.fecha || new Date();
+  const p = n => String(n).padStart(2,"0");
+  return `factura_${d.getFullYear()}${p(d.getMonth()+1)}${p(d.getDate())}_` +
+         `${p(d.getHours())}${p(d.getMinutes())}${p(d.getSeconds())}.png`;
+}
+
+document.getElementById("saveBtn").addEventListener("click", async () => {
+  const blob = await crearPNG();
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = nombreArchivo();
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+  mostrarMensaje("Factura guardada como imagen PNG.");
+});
+
+document.getElementById("shareBtn").addEventListener("click", async () => {
+  const blob = await crearPNG();
+  const file = new File([blob], nombreArchivo(), {type:"image/png"});
+
+  if (navigator.share && navigator.canShare && navigator.canShare({files:[file]})) {
+    try {
+      await navigator.share({
+        title: "Compartir Factura",
+        files: [file]
+      });
+    } catch(e) {
+      if (e.name !== "AbortError") mostrarMensaje("No se pudo compartir.");
+    }
+  } else {
+    mostrarMensaje("La función Compartir no está disponible en este navegador.");
+  }
+});
+
+document.getElementById("printBtn").addEventListener("click", () => {
+  window.print();
+});
+
+llenarEntidades();
+</script>
+</body>
+</html>
