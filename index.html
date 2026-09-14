@@ -134,7 +134,7 @@ if ("serviceWorker" in navigator) {
 
   <!-- PANTALLA 1 -->
   <section id="formScreen" class="screen active">
-    <div class="title">EMISIÓN DE FACTURA / TICKET</div>
+    <div class="title">EMISIÓN DE BOLETA / TICKET</div>
 
     <div class="form">
       <div class="label">1. Tipo de Entidad:</div>
@@ -314,7 +314,7 @@ function crearPNG() {
     ctx.fillStyle = "#555555";
     ctx.textAlign = "center";
     ctx.font = "bold 15px Arial";
-    ctx.fillText("COMPROBANTE DE FACTURA", w/2, 39);
+    ctx.fillText("COMPROBANTE DE BOLETA", w/2, 39);
     ctx.font = "15px Arial";
     ctx.fillText("---------------------------------------", w/2, 57);
 
@@ -363,7 +363,7 @@ document.getElementById("saveBtn").addEventListener("click", async () => {
   a.click();
   a.remove();
   URL.revokeObjectURL(url);
-  mostrarMensaje("Factura guardada como imagen PNG.");
+  mostrarMensaje("Boleta guardada como imagen PNG.");
 });
 
 document.getElementById("shareBtn").addEventListener("click", async () => {
@@ -373,7 +373,7 @@ document.getElementById("shareBtn").addEventListener("click", async () => {
   if (navigator.share && navigator.canShare && navigator.canShare({files:[file]})) {
     try {
       await navigator.share({
-        title: "Compartir Factura",
+        title: "Compartir Boleta",
         files: [file]
       });
     } catch(e) {
